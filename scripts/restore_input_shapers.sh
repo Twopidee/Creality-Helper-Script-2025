@@ -7,9 +7,11 @@ set -e
 # only modified on listed versions, matched as a substring of the reported firmware
 # (check_fw_version, which returns /etc/version on the K1_2025). Space-separated;
 # extend as builds are confirmed. Heads-up: .23 was never run on hardware, it is
-# listed because its Klipper bytecode is identical to the verified .22. Anyone on an
-# unlisted build is asked to report it first rather than have klippy touched blindly.
-RESTORE_SHAPERS_SUPPORTED_FW="V1.0.0.22.20250711S V1.0.0.23.20250722S V1.0.0.26.20251024S"
+# listed because its Klipper bytecode is identical to the verified .22. V1.1.0.27
+# (the CFS-C build) is bytecode-identical to .26 and has one user execution report.
+# Anyone on an unlisted build is asked to report it first rather than have klippy
+# touched blindly.
+RESTORE_SHAPERS_SUPPORTED_FW="V1.0.0.22.20250711S V1.0.0.23.20250722S V1.0.0.26.20251024S V1.1.0.27.20260424S"
 
 function restore_input_shapers_message(){
   top_line
