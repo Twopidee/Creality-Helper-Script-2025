@@ -31,6 +31,16 @@ function check_any_file_k1_2025() {
   echo -e "${red}✗"
 }
 
+function check_start_print_calibration_k1_2025() {
+  if [ ! -f "$PRINTER_CFG" ]; then
+    echo -e "${red}✗"
+  elif grep -q "^\[gcode_macro SDCARD_PRINT_FILE\]" "$PRINTER_CFG"; then
+    echo -e "${green}✓"
+  else
+    echo -e "${red}✗"
+  fi
+}
+
 function check_simplyprint_k1_2025() {
   if [ ! -f "$MOONRAKER_CFG" ]; then
     echo -e "${red}✗"
@@ -85,6 +95,7 @@ function info_menu_ui_k1_2025() {
   info_line "$(check_folder_k1_2025 "$IMP_SHAPERS_FOLDER")" 'Improved Shapers Calibrations'
   info_line "$(check_file_k1_2025 "$SHAPER_DEFS_FILE")" 'Restore Input Shapers'
   info_line "$(check_file_k1_2025 "$EXTENDED_GCODE_PARAMS_FILE")" 'Extended Gcode Params'
+  info_line "$(check_start_print_calibration_k1_2025)" 'Start Print Calibration'
   info_line "$(check_file_k1_2025 "$USEFUL_MACROS_FILE")" 'Useful Macros'
   info_line "$(check_file_k1_2025 "$SAVE_ZOFFSET_FILE")" 'Save Z-Offset Macros'
   info_line "$(check_file_k1_2025 "$SCREWS_ADJUST_FILE")" 'Screws Tilt Adjust Support'
