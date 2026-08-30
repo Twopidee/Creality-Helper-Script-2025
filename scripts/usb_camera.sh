@@ -164,7 +164,7 @@ function install_usb_camera(){
                 echo -e "${white}"
                 echo -e "Info: Applying change..."
               break;;
-              1080p|1080p)
+              1080p|1080P)
                 echo -e "${white}"
                 echo -e "Info: Applying change..."
                 sed -i 's/1280x720/1920x1080/g' "$USB_CAMERA_FILE"

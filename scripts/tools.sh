@@ -234,7 +234,8 @@ function enable_camera_settings(){
         else
           echo -e "Info: Camera settings are already enabled in moonraker.conf file..."        
         fi
-        local ip_address=$(check_ipaddress)
+        local ip_address
+        ip_address="$(check_ipaddress)"
         if grep -q "stream_url: http://xxx.xxx.xxx.xxx:8080/?action=stream" "$MOONRAKER_CFG"; then
           echo -e "Info: Replacing stream_url IP address..."
           sed -i "s|http://xxx.xxx.xxx.xxx:|http://$ip_address:|g" "$MOONRAKER_CFG"
