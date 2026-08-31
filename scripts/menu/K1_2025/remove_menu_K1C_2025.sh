@@ -26,6 +26,7 @@ function remove_menu_ui_k1_2025() {
   subtitle '•IMPROVEMENTS:'
   menu_option '11' 'Remove' 'Restore Input Shapers'
   menu_option '12' 'Remove' 'Extended Gcode Params'
+  menu_option '13' 'Remove' 'Start Print Calibration'
 #  hr
 #  subtitle '•IMPROVEMENTS:'
 #  disabled_menu_option ' 6' 'Remove' 'Klipper Adaptive Meshing & Purging'
@@ -174,6 +175,12 @@ function remove_menu_k1_2025() {
           error_msg "Extended Gcode Params is not installed!"
         else
           run "remove_extended_gcode_params" "remove_menu_ui_k1_2025"
+        fi;;
+      13)
+        if ! grep -q "^\[gcode_macro SDCARD_PRINT_FILE\]" "$PRINTER_CFG" 2>/dev/null; then
+          error_msg "Start Print Calibration is not installed!"
+        else
+          run "remove_start_print_calibration" "remove_menu_ui_k1_2025"
         fi;;
 
 #      6)
