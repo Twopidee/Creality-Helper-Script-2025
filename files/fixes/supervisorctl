@@ -42,6 +42,8 @@ get_services() {
   moonraker_pid="$(cat /var/run/moonraker.pid 2>/dev/null)"
   # if moonraker is running, confirm via its PID file before reporting
   if [ -f /var/run/moonraker.pid ] && [ -d /proc/"$moonraker_pid" ] ; then
+    # init scripts have fixed alphanumeric names, so ls | grep is safe here
+    # shellcheck disable=SC2010
     services=$(ls -1 ${INITD_PATH}/S[0-9][0-9]* ${INITD_PATH}/[A-Z]S[0-9][0-9]* 2>/dev/null \
                | grep -vE '\.(bak|bkp|orig)' | _svc_name | sort -u)
     echo $services
@@ -87,6 +89,8 @@ print_usage() {
 
 get_script_path() {
   service="$1"
+  # init scripts have fixed alphanumeric names, so ls | grep is safe here
+  # shellcheck disable=SC2010
   script_path="$(ls -1 ${INITD_PATH}/S[0-9][0-9]${service}_service \
                        ${INITD_PATH}/[A-Z]S[0-9][0-9]${service}_service \
                        ${INITD_PATH}/S[0-9][0-9]${service} \

@@ -2,7 +2,7 @@
 
 start_git_backup() {
   echo "Info: Starting Git Backup..."
-  /usr/data/helper-script/files/git-backup/git-backup.sh -b "$BRANCH" -t "$IFS" -g origin > /dev/null 2>&1 &
+  /usr/data/helper-script/files/git-backup/git-backup.sh -b "$BRANCH" -t "$TARGET" -g origin > /dev/null 2>&1 &
 }
 
 case "$1" in

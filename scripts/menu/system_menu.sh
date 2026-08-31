@@ -56,11 +56,11 @@ function format_uptime() {
 }
 
 function system_menu_ui() {
-  memavail=`cat /proc/meminfo | grep MemAvailable | awk {'print $2'}`
-  [ -z "$memavail" ] && memavail=`cat /proc/meminfo | grep MemFree | awk {'print $2'}`
-  memtotal=`cat /proc/meminfo | grep MemTotal | awk {'print $2'}`
+  memavail=`cat /proc/meminfo | grep MemAvailable | awk '{print $2}'`
+  [ -z "$memavail" ] && memavail=`cat /proc/meminfo | grep MemFree | awk '{print $2}'`
+  memtotal=`cat /proc/meminfo | grep MemTotal | awk '{print $2}'`
   pourcent=$((($memavail * 100)/$memtotal))
-  diskused=`df -h | grep /dev/mmcblk0p10 | awk {'print $3 " / " $2 " (" $4 " available)" '}`
+  diskused=`df -h | grep /dev/mmcblk0p10 | awk '{print $3 " / " $2 " (" $4 " available)" }'`
   process=`ps | wc -l | tr -d " "`
   uptime=`cat /proc/uptime | cut -f1 -d.`
   formatted_uptime=$(format_uptime $uptime)

@@ -74,7 +74,7 @@ function install_menu_k1_2025() {
         elif [ ! -f "$ENTWARE_FILE" ]; then
           error_msg "Entware is needed, please install it first!"
         else
-          if [ "$(basename $(which "tar"))" != "/opt/bin" ]; then
+          if [ "$(basename "$(which tar)")" != "/opt/bin" ]; then
             echo "Installing tar from opkg..."
             opkg install tar
           fi

@@ -39,7 +39,8 @@ function update_available() {
 }
 
 function update_menu() {
-  local update_available=$(update_available)
+  local update_available
+  update_available="$(update_available)"
   if [[ "$update_available" == "true" ]]; then
     top_line
     title "A new script version is available!" "${green}"

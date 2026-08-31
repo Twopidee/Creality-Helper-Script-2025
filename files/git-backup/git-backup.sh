@@ -85,10 +85,10 @@ if [ "$PAUSE" = 1 ]; then
     exit 0
 elif [ "$STOP" = 1 ]; then
     echo "Info: Stopping automatic backups until manually restarted..."
-    if [ -f mv /etc/init.d/S52Git-Backup ];then
+    if [ -f /etc/init.d/S52Git-Backup ];then
+        /etc/init.d/S52Git-Backup stop
         mv /etc/init.d/S52Git-Backup /etc/init.d/disabled.S52Git-Backup
     fi
-    /etc/init.d/S52Git-Backup stop
     exit 0
 elif [ "$RESUME" = 1 ]; then
     echo "Info: Resuming automatic backups..."
@@ -157,10 +157,10 @@ elif [ "$INSTALL" = 1 ]; then
     echo "${white}"
     
     # Folder to be watched
-    IFS=/usr/data/printer_data/config
-    
+    TARGET=/usr/data/printer_data/config
+
     # Connect config directory to github
-    cd "$IFS" || exit
+    cd "$TARGET" || exit
     git config --global user.name "$USER_NAME"
     git config --global user.email "$USER_MAIL"
     git init
@@ -224,7 +224,7 @@ elif [ "$INSTALL" = 1 ]; then
         mkdir -p /usr/data/helper-script-backup/git-backup
     fi
     ENV=/usr/data/helper-script-backup/git-backup/.env
-    echo "IFS=$IFS" > "$ENV"
+    echo "TARGET=$TARGET" > "$ENV"
     echo "GITHUB_TOKEN=$GITHUB_TOKEN" >> "$ENV"
     echo "REMOTE=$REPO_NAME" >> "$ENV"
     echo "BRANCH=$REPO_BRANCH" >> "$ENV"
@@ -354,7 +354,7 @@ fi
 timeout() {
   sleep "5" &
   timeout_pid=$!
-  trap "kill $timeout_pid 2>/dev/null" EXIT
+  trap 'kill $timeout_pid 2>/dev/null' EXIT
   wait $timeout_pid 2>/dev/null
 }
 
