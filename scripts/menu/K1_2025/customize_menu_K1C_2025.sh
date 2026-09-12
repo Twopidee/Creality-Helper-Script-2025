@@ -14,8 +14,8 @@ function customize_menu_ui_k1_2025() {
   menu_option '4' 'Disable' 'Creality Stock Services'
   menu_option '5' 'Restore' 'Creality Stock Services'
   hr
-  menu_option '4' 'Retire' 'Nexusp Backend'
-  menu_option '5' 'Restore' 'Nexusp Backend'
+  menu_option '6' 'Retire' 'Nexusp Backend'
+  menu_option '7' 'Restore' 'Nexusp Backend'
   hr
   inner_line
   hr
@@ -69,7 +69,7 @@ function customize_menu_k1_2025() {
         else
           run "restore_creality_services" "customize_menu_ui_k1_2025"
         fi;;
-      4)
+      6)
         if nexusp_absent; then
           error_msg "No nexusp service was found on this firmware!"
         elif nexusp_retired && ! nexusp_resurrected; then
@@ -80,7 +80,7 @@ function customize_menu_k1_2025() {
           # rename, which is the only repair for it.
           run "retire_nexusp" "customize_menu_ui_k1_2025"
         fi;;
-      5)
+      7)
         if nexusp_absent; then
           error_msg "No nexusp service was found on this firmware!"
         elif ! nexusp_retired; then
