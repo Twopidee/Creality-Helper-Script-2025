@@ -33,8 +33,9 @@ import subprocess
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPT = os.path.join(REPO, "scripts", "tools.sh")
-# Resolved now, with the real PATH: run_sh hands bash an empty PATH, and
-# subprocess looks the executable up in the PATH it is GIVEN, not ours.
+# Resolved now, with the real PATH: run_sh hands bash a PATH holding only an
+# empty directory, and subprocess looks the executable up in the PATH it is
+# GIVEN, not ours.
 BASH = shutil.which("bash")
 
 # What pip 19.3.1 prints for `pip cache purge`, verbatim from a K1C 2025.
@@ -44,6 +45,8 @@ PIP_19_3_1 = (
 )
 # What pip >= 20.1 prints when the cache directory is already gone.
 PIP_MODERN_EMPTY_CACHE = 'pip() { echo "ERROR: No matching packages" >&2; return 1; }'
+# What pip >= 20.1 prints when it actually has something to purge.
+PIP_MODERN_POPULATED_CACHE = 'pip() { echo "Files removed: 12"; return 0; }'
 
 
 def run_sh(body, tmp_path, pip_shim=None):
@@ -57,8 +60,8 @@ def run_sh(body, tmp_path, pip_shim=None):
     env = dict(os.environ)
     bindir = tmp_path / "bin"
     bindir.mkdir(exist_ok=True)
-    # An empty PATH entry: builtins (echo, read, cd) still work, and an
-    # unshimmed external command fails with 127 instead of running for real.
+    # PATH is one empty directory: builtins (echo, read, cd) still work, and
+    # an unshimmed external command fails with 127 instead of running for real.
     env["PATH"] = str(bindir)
     preamble = f"""
 set -e
@@ -128,3 +131,42 @@ echo SURVIVED
     assert r.returncode == 0, r.stdout + r.stderr
     assert "ERR: Clearing cache canceled!" in r.stdout, r.stdout
     assert "rm -rf" not in r.stdout, r.stdout
+
+
+def test_clear_cache_with_a_working_pip_is_quiet_and_still_succeeds(tmp_path):
+    """pip exiting 0 is the one case the old code handled; the guard must not
+    break it. Its stdout is now discarded along with its stderr, so the user
+    sees the helper's own Info line and then the ok_msg, not pip's chatter."""
+    r = run_sh(CLEAR_CACHE, tmp_path, pip_shim=PIP_MODERN_POPULATED_CACHE)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "SURVIVED" in r.stdout, r.stdout + r.stderr
+    assert "OK: Cache has been cleared!" in r.stdout, r.stdout
+    assert "Files removed" not in r.stdout + r.stderr, r.stdout + r.stderr
+    assert "Info: Clearing pip cache..." in r.stdout, r.stdout
+
+
+def test_clear_cache_still_invokes_pip_cache_purge_after_git_gc(tmp_path):
+    """`|| true` and the redirects must not turn the pip step into a no-op.
+    pip's own output is discarded, so the shim records its invocation in a
+    file instead; the Info lines carry the ordering."""
+    log = tmp_path / "pip.log"
+    shim = f'pip() {{ echo "pip $*" >> "{log}"; return 1; }}'
+    r = run_sh(CLEAR_CACHE, tmp_path, pip_shim=shim)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert log.read_text().splitlines() == ["pip cache purge"], log.read_text()
+    i_gc = r.stdout.find("Info: Clearing git cache...")
+    i_pip = r.stdout.find("Info: Clearing pip cache...")
+    assert -1 < i_gc < i_pip, r.stdout
+
+
+def test_clear_cache_reprompts_on_an_invalid_answer(tmp_path):
+    """Anything but y/n re-asks rather than exiting or proceeding; a y on the
+    next line then runs the action."""
+    r = run_sh("""
+printf 'x\\ny\\n' | clear_cache
+echo SURVIVED
+""", tmp_path, pip_shim=PIP_19_3_1)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "ERR: Please select a correct choice!" in r.stdout, r.stdout
+    assert "OK: Cache has been cleared!" in r.stdout, r.stdout
+    assert "SURVIVED" in r.stdout, r.stdout
