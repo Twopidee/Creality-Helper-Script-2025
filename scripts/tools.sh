@@ -443,7 +443,13 @@ function clear_cache(){
         echo -e "Info: Clearing git cache..."
         cd "${HELPER_SCRIPT_FOLDER}"
         git gc --aggressive --prune=all
-        pip cache purge
+        echo -e "Info: Clearing pip cache..."
+        # The printer's stock /usr/bin/pip is 19.3.1, older than the `pip
+        # cache` subcommand (pip 20.1), and exits 1 with 'unknown command
+        # "cache"'; a newer pip exits 1 with "No matching packages" because
+        # /root/.cache, where its cache lives, was removed just above. Under
+        # helper.sh's global `set -e` either exit killed the whole helper.
+        pip cache purge >/dev/null 2>&1 || true
         ok_msg "Cache has been cleared!"
         return;;
       N|n)
