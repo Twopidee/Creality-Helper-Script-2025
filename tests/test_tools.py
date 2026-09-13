@@ -20,6 +20,11 @@ fails the same step differently: the function has just removed /root/.cache,
 where pip keeps its cache, so `pip cache purge` reports "No matching packages"
 and exits 1 too (verified with pip 21.2.4 against an empty PIP_CACHE_DIR).
 
+The same errexit contract is pinned for the two lines above the pip step:
+`git gc` on a corrupted checkout exits 128 (now reported, and the action
+carries on), and `read` returns non-zero when stdin hits end-of-input (now
+treated as "no", the contract test_retire_nexusp.py pins for its prompt).
+
 Each test sources the real tools.sh under `set -e`, shims the commands the
 action would otherwise run for real (rm, git, pip), answers the confirmation
 prompt, and checks that control comes back to the caller.
@@ -47,15 +52,20 @@ PIP_19_3_1 = (
 PIP_MODERN_EMPTY_CACHE = 'pip() { echo "ERROR: No matching packages" >&2; return 1; }'
 # What pip >= 20.1 prints when it actually has something to purge.
 PIP_MODERN_POPULATED_CACHE = 'pip() { echo "Files removed: 12"; return 0; }'
+# The git gc step succeeds unless a test says otherwise.
+DEFAULT_GIT_SHIM = 'git() { echo "git $*"; }'
+# What a corrupted object store or a zip-installed checkout prints for git gc.
+GIT_GC_FAILS = 'git() { echo "fatal: not a git repository" >&2; return 128; }'
 
 
-def run_sh(body, tmp_path, pip_shim=None):
+def run_sh(body, tmp_path, pip_shim=None, git_shim=None):
     """Source tools.sh with side-effecting commands shimmed, then run `body`.
 
     `set -e` is on, exactly as helper.sh has it, because that is the condition
     these tests exist to check. rm and git are shell functions so nothing here
-    can touch /root/.cache or run git gc on a real checkout; pip is whichever
-    shim the test asks for, or absent from PATH entirely when None.
+    can touch /root/.cache or run git gc on a real checkout; git_shim replaces
+    the always-succeeding default. pip is whichever shim the test asks for, or
+    absent from PATH entirely when None.
     """
     env = dict(os.environ)
     bindir = tmp_path / "bin"
@@ -69,7 +79,7 @@ white=; yellow=; cyan=; green=; darkred=; red=
 error_msg() {{ echo "ERR: $1"; }}
 ok_msg() {{ echo "OK: $1"; }}
 rm() {{ echo "rm $*"; }}
-git() {{ echo "git $*"; }}
+{git_shim or DEFAULT_GIT_SHIM}
 {pip_shim or ''}
 HELPER_SCRIPT_FOLDER={tmp_path}
 . {SCRIPT}
@@ -113,11 +123,11 @@ def test_clear_cache_survives_no_pip_at_all(tmp_path):
 
 def test_clear_cache_still_runs_the_other_steps(tmp_path):
     """The guard must only soften the pip step. The cache directory removal
-    and git gc still happen, in that order, before pip."""
+    and git gc still happen, in that order."""
     r = run_sh(CLEAR_CACHE, tmp_path, pip_shim=PIP_19_3_1)
     out = r.stdout
     i_rm = out.find("rm -rf /root/.cache")
-    i_gc = out.find("git gc --aggressive --prune=all")
+    i_gc = out.find("gc --aggressive --prune=all")
     assert i_rm != -1 and i_gc != -1, out
     assert i_rm < i_gc, out
 
@@ -170,3 +180,64 @@ echo SURVIVED
     assert "ERR: Please select a correct choice!" in r.stdout, r.stdout
     assert "OK: Cache has been cleared!" in r.stdout, r.stdout
     assert "SURVIVED" in r.stdout, r.stdout
+
+
+def test_clear_cache_survives_a_failing_git_gc(tmp_path):
+    """git gc is the step right before pip and was just as unguarded under
+    helper.sh's global set -e. A power-cut-corrupted .git must not kill the
+    helper; the user is told and the action carries on."""
+    r = run_sh(CLEAR_CACHE, tmp_path, pip_shim=PIP_19_3_1, git_shim=GIT_GC_FAILS)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "SURVIVED" in r.stdout, r.stdout + r.stderr
+    assert "ERR: Git cache could not be cleared" in r.stdout, r.stdout
+    assert "OK: Cache has been cleared, except the git cache!" in r.stdout, r.stdout
+    assert "OK: Cache has been cleared!" not in r.stdout, r.stdout
+
+
+def test_a_closed_stdin_cancels_clear_cache_rather_than_killing_the_helper(tmp_path):
+    """`read` returns non-zero on EOF, and under helper.sh's global set -e that
+    exits the whole helper with no message. EOF is a no, not a yes: the same
+    contract test_retire_nexusp.py pins for its confirmation prompt."""
+    r = run_sh("""
+clear_cache < /dev/null
+echo SURVIVED
+""", tmp_path, pip_shim=PIP_19_3_1)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "SURVIVED" in r.stdout, r.stdout + r.stderr
+    assert "ERR: Clearing cache canceled!" in r.stdout, r.stdout
+    assert "rm -rf" not in r.stdout, r.stdout
+
+
+def test_an_unterminated_yes_is_treated_as_a_cancel(tmp_path):
+    """`read` returns non-zero on EOF even when it already filled yn, so a
+    piped 'y' with no newline is overridden to 'n'. A terminal always sends
+    the newline, so this only affects piped input; pin it as a decision."""
+    r = run_sh("""
+printf y | clear_cache
+echo SURVIVED
+""", tmp_path, pip_shim=PIP_19_3_1)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "SURVIVED" in r.stdout, r.stdout + r.stderr
+    assert "ERR: Clearing cache canceled!" in r.stdout, r.stdout
+    assert "rm -rf" not in r.stdout, r.stdout
+
+
+def test_clear_cache_survives_a_missing_helper_folder(tmp_path):
+    """The checkout is addressed with `git -C`, not `cd`: a missing or moved
+    helper folder is reported by the git gc guard instead of killing the
+    helper at an unguarded cd, and the menu shell's working directory is
+    left alone for every later action."""
+    r = run_sh("""
+HELPER_SCRIPT_FOLDER=$PWD/does-not-exist
+before=$PWD
+# A here-string, not a pipe: a pipeline runs the action in a subshell,
+# whose cd could never reach the $PWD checked below. This runs it in the
+# test shell, the way helper.sh's menu shell runs it.
+clear_cache <<< y
+[ "$PWD" = "$before" ] && echo CWD_UNCHANGED
+echo SURVIVED
+""", tmp_path, pip_shim=PIP_19_3_1, git_shim=GIT_GC_FAILS)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "SURVIVED" in r.stdout, r.stdout + r.stderr
+    assert "CWD_UNCHANGED" in r.stdout, r.stdout
+    assert "No such file" not in r.stdout + r.stderr, r.stdout + r.stderr
